@@ -1,23 +1,7 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "devops-app-chart.fullname" . }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      {{- include "devops-app-chart.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      labels:
-        {{- include "devops-app-chart.selectorLabels" . | nindent 8 }}
-    spec:
-      containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          ports:
-            - containerPort: 8080
-          env:
+env:
+            - name: SPRING_DATASOURCE_URL
+              # Use the internal Kubernetes DNS name for the MySQL service
+              value: "jdbc:mysql://{{ .Release.Name }}-mysql:3306/devops_db"
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -28,5 +12,5 @@ spec:
                 secretKeyRef:
                   name: {{ include "devops-app-chart.fullname" . }}-db-secret
                   key: db-password
-            - name: SPRING_DATASOURCE_URL
-              value: "jdbc:mysql://mysql-service:3306/devops_db"
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "update"
