@@ -50,3 +50,20 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.branch }}-latest
+
+            - name: Provision local cluster with vind
+          run: |
+            echo "Downloading vCluster CLI..."
+            curl -L -o vcluster "https://github.com/loft-sh/vcluster/releases/latest/download/vcluster-linux-amd64"
+            sudo install -c -m 0755 vcluster /usr/local/bin
+            rm -f vcluster
+          
+            echo "Setting driver to Docker (vind mode)..."
+            vcluster use driver docker
+          
+            echo "Creating the Kubernetes cluster..."
+            vcluster create ci-cluster
+          
+            echo "Verifying cluster is running..."
+            kubectl cluster-info
+            kubectl get nodes
