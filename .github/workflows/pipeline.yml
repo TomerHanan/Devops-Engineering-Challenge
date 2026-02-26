@@ -51,6 +51,15 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.branch }}-latest
 
+
+      - name: Prepare Helm Chart
+        run: |
+          # Do this BEFORE creating the cluster
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          # Use --skip-refresh since we just updated the repo
+          helm dependency update ./devops-app-chart --skip-refresh
+
       - name: Provision local cluster with vind
         run: |
           echo "Downloading vCluster CLI..."
@@ -67,25 +76,6 @@ jobs:
             echo "Verifying cluster is running..."
             kubectl cluster-info
             kubectl get nodes
-
-      - name: Prepare Helm Chart
-        run: |
-          # Do this BEFORE creating the cluster
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo update
-          # Use --skip-refresh since we just updated the repo
-          helm dependency update ./devops-app-chart --skip-refresh
-
-      - name: Provision local cluster with vind
-        run: |
-          curl -L -o vcluster "https://github.com/loft-sh/vcluster/releases/latest/download/vcluster-linux-amd64"
-          sudo install -c -m 0755 vcluster /usr/local/bin
-          vcluster use driver docker
-          # MUST use --background and --connect=false for CI
-          vcluster create ci-cluster --background --connect=false
-          
-          # Wait for the kubeconfig to be generated and cluster to be ready
-          timeout 60s bash -c 'until kubectl get nodes; do sleep 5; done'
 
       - name: Deploy to vind
         run: |
