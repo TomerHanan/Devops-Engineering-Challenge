@@ -1,16 +1,17 @@
-# Settings for the MySQL subchart
+replicaCount: 1
+
+image:
+  repository: devops-app
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+
 mysql:
   auth:
     database: devops_db
     username: devops_user
     password: devops_password
     rootPassword: root_password
-  primary:
-    persistence:
-      enabled: false # Set to true for production/real labs
-
-# Your Application settings
-image:
-  repository: devops-app
-  tag: latest
-  pullPolicy: IfNotPresent

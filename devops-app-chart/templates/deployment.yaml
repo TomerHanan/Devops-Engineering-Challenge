@@ -1,7 +1,32 @@
-env:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "devops-app-chart.fullname" . }}
+  labels:
+    {{- include "devops-app-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "devops-app-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "devops-app-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # The URL points to the MySQL service created by the subchart
             - name: SPRING_DATASOURCE_URL
-              # Use the internal Kubernetes DNS name for the MySQL service
-              value: "jdbc:mysql://{{ .Release.Name }}-mysql:3306/devops_db"
+              value: "jdbc:mysql://{{ .Release.Name }}-mysql:3306/{{ .Values.mysql.auth.database }}"
+            # Reference the Secret we created for credentials
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -12,5 +37,6 @@ env:
                 secretKeyRef:
                   name: {{ include "devops-app-chart.fullname" . }}-db-secret
                   key: db-password
+            # Ensures Hibernate creates the tables automatically on startup
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
