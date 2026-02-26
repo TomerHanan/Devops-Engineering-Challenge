@@ -67,3 +67,24 @@ jobs:
             echo "Verifying cluster is running..."
             kubectl cluster-info
             kubectl get nodes
+
+      - name: Deploy to vind with Branch-Specific Values
+        run: |
+          # 1. Ensure MySQL subchart is ready
+          helm dependency update ./devops-app-chart
+          
+          # 2. Deploy with dynamic overrides
+          helm install my-devops-app ./devops-app-chart \
+            --set image.repository=${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }} \
+            --set image.tag=${{ steps.meta.outputs.tag }} \
+            --set replicaCount=${{ github.ref_name == 'main' && 3 || 1 }} \
+            --set mysql.primary.persistence.enabled=false \
+            --wait --timeout 5m
+
+      - name: Verify Branch-Specific Setup
+        run: |
+          echo "Checking replica count for branch: ${{ github.ref_name }}"
+          kubectl get deployments my-devops-app -o jsonpath='{.spec.replicas}'
+          
+          echo "Checking image tag..."
+          kubectl get pods -l app.kubernetes.io/name=devops-app-chart -o jsonpath='{.items[0].spec.containers[0].image}'
