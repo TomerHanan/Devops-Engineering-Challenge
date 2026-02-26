@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. PREPARE METADATA (Lowercases repo name for Docker/GHCR compatibility)
+      # 1. PREPARE METADATA (Lowercase for GHCR)
       - name: Prepare Image Metadata
         id: meta
         run: |
@@ -56,30 +56,34 @@ jobs:
           helm repo update
           helm dependency update ./devops-app-chart --skip-refresh
 
-      # 4. PROVISION CLUSTER (vCluster 2026 / vind mode)
+      # 4. PROVISION CLUSTER (Fixed Connection Logic)
       - name: Provision local cluster with vind
         run: |
           curl -L -o vcluster "https://github.com/loft-sh/vcluster/releases/latest/download/vcluster-linux-amd64"
           sudo install -c -m 0755 vcluster /usr/local/bin
           
           vcluster use driver docker
-          # Using --connect=false prevents the pipeline from hanging
+          # Create without connecting immediately
           vcluster create ci-cluster --connect=false
           
-          # Wait for the virtual API server to respond
+          # CRITICAL: Manually update the kubeconfig so kubectl knows where to go
+          # This fixes the "localhost:8080" error
+          vcluster connect ci-cluster --update-current
+          
+          # Wait for API server to wake up
           sleep 20
           kubectl cluster-info
+          kubectl get nodes
 
-      # 5. AUTHENTICATE CLUSTER TO GHCR (Fixes the "Stuck" issue)
+      # 5. AUTHENTICATE CLUSTER TO GHCR
       - name: Create Image Pull Secret
         run: |
-          # This allows the cluster to use the GITHUB_TOKEN to pull your image
           kubectl create secret docker-registry ghcr-pull-secret \
             --docker-server=ghcr.io \
             --docker-username=${{ github.actor }} \
             --docker-password=${{ secrets.GITHUB_TOKEN }}
 
-      # 6. DEPLOY (Branch-specific values and Pull Secret)
+      # 6. DEPLOY
       - name: Deploy to vind
         run: |
           helm install my-devops-app ./devops-app-chart \
