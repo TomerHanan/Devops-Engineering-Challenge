@@ -70,16 +70,16 @@ jobs:
 
       - name: Deploy to vind with Branch-Specific Values
         run: |
-          # 1. Ensure MySQL subchart is ready
           helm dependency update ./devops-app-chart
           
-          # 2. Deploy with dynamic overrides
           helm install my-devops-app ./devops-app-chart \
             --set image.repository=${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }} \
             --set image.tag=${{ steps.meta.outputs.tag }} \
-            --set replicaCount=${{ github.ref_name == 'main' && 3 || 1 }} \
             --set mysql.primary.persistence.enabled=false \
-            --wait --timeout 5m
+            --set mysql.primary.resources.requests.cpu=100m \
+            --set mysql.primary.resources.requests.memory=256Mi \
+            --wait \
+            --timeout 10m  # Increased from 5m to 10m
 
       - name: Verify Branch-Specific Setup
         run: |
