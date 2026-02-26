@@ -10,4 +10,3 @@
                 return "200 OK - Application is running!"; 
                 }
         }
-    ```
