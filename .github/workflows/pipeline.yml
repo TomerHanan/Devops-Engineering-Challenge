@@ -68,23 +68,30 @@ jobs:
             kubectl cluster-info
             kubectl get nodes
 
-      - name: Deploy to vind with Branch-Specific Values
+      - name: Prepare Helm Chart
         run: |
-          helm dependency update ./devops-app-chart
+          # Do this BEFORE creating the cluster
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          # Use --skip-refresh since we just updated the repo
+          helm dependency update ./devops-app-chart --skip-refresh
+
+      - name: Provision local cluster with vind
+        run: |
+          curl -L -o vcluster "https://github.com/loft-sh/vcluster/releases/latest/download/vcluster-linux-amd64"
+          sudo install -c -m 0755 vcluster /usr/local/bin
+          vcluster use driver docker
+          # MUST use --background and --connect=false for CI
+          vcluster create ci-cluster --background --connect=false
           
+          # Wait for the kubeconfig to be generated and cluster to be ready
+          timeout 60s bash -c 'until kubectl get nodes; do sleep 5; done'
+
+      - name: Deploy to vind
+        run: |
+          # No need to update dependencies here, we already did it!
           helm install my-devops-app ./devops-app-chart \
             --set image.repository=${{ env.REGISTRY }}/${{ steps.meta.outputs.repo }} \
             --set image.tag=${{ steps.meta.outputs.tag }} \
             --set mysql.primary.persistence.enabled=false \
-            --set mysql.primary.resources.requests.cpu=100m \
-            --set mysql.primary.resources.requests.memory=256Mi \
-            --wait \
-            --timeout 10m  # Increased from 5m to 10m
-
-      - name: Verify Branch-Specific Setup
-        run: |
-          echo "Checking replica count for branch: ${{ github.ref_name }}"
-          kubectl get deployments my-devops-app -o jsonpath='{.spec.replicas}'
-          
-          echo "Checking image tag..."
-          kubectl get pods -l app.kubernetes.io/name=devops-app-chart -o jsonpath='{.items[0].spec.containers[0].image}'
+            --wait --timeout 10m
