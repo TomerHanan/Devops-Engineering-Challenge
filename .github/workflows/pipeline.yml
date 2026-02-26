@@ -67,3 +67,4 @@ jobs:
             echo "Verifying cluster is running..."
             kubectl cluster-info
             kubectl get nodes
+            
